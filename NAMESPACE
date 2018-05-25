@@ -1,0 +1,8 @@
+exportPattern("^[^\\.]")
+
+import(methods)
+import(RCurl,XML,DBI)
+
+importFrom(utils, edit, head, read.table)
+
+exportMethods("show")

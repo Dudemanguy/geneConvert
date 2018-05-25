@@ -1,0 +1,18 @@
+Package: geneConvert
+Version: 00.00.01
+Title: Simple and fast batch gene id conversion.
+Author: <random342@airmail.cc>
+Maintainer: <random342@airmail.cc>
+Depends: methods
+Imports: utils, XML, RCurl
+Suggests: 
+VignetteBuilder: knitr
+biocViews: Annotation
+Description: geneConvert integrates SQL and XML parsing of webpages
+             to store gene annotation information locally. Gene annotations
+			 can be queried and fetched from the local database for speedy
+			 gene annotation convertion and simply integration into existing
+			 R packages and tools.
+License: GPL (>= 2)
+LazyLoad: yes
+NeedsCompilation: no
