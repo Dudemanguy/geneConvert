@@ -49,10 +49,25 @@ scraper <- function(genes, organism) {
 		fileURL <- gsub(" ", "%20", fileURL)
 		xData <- getURL(fileURL)
 		doc <- htmlParse(xData, encoding="UTF-8")
+		print(paste0("Scraping ", genes[[i]]))
 		valid_URL <- grepl("Full Report", xmlValue(getNodeSet(doc, "/*")[[1]]))
-		if (!valid_URL) {
+		search_results <- grepl("Search results", xmlValue(getNodeSet(doc, "/*")[[1]]))
+		if (!valid_URL & !search_results) {
 			message("Invalid gene or organism name inputted; skipping")
 			next
+		}
+		if (search_results) {
+			results <- getNodeSet(doc, "//a[contains(@href, '/gene/')]")
+			results_list <- list()
+			for (n in seq_along(results)) {
+				results_list[[n]] <- as(results[[n]], "character")
+			}
+			results_grep <- as.character(results_list[grep(genes[[i]], results_list)])
+			results_split <- strsplit(results_grep, "ref")[[1]][2]
+			id <- as.character(gsub("\\D", "", results_split))
+			newURL <- paste0("https://www.ncbi.nlm.nih.gov/gene/", id)
+			xData <- getURL(newURL)
+			doc <- htmlParse(xData, encoding="UTF-8")
 		}
 		description <- xmlValue(getNodeSet(doc, "//title")[[1]][1]$text)
 		description <- trimws(gsub("\\[.*", "", description))
