@@ -24,7 +24,7 @@ convert <- function(genes, organism, input, output, full_table=FALSE) {
 		output <- argumentHandling(output, values)
 	}
 	new_genes <- unique(genes[!(genes %in% values[[input]])])
-	if (length(new_genes > 0)) {
+	if (length(new_genes) > 0) {
 		scraped_genes <- scraper(new_genes, organism)
 		values <- rbind(values, scraped_genes)
 	}
@@ -113,7 +113,7 @@ scraper <- function(genes, organism) {
 		total_list[[i]] <- data.frame(hgnc, geneid, description, geneloc, refseq, protein, ensembl, date)
 	}
 	total_frame <- do.call(rbind, total_list)
-	if (length(total_frame > 0)) {
+	if (length(total_frame) > 0) {
 		dbWriteTable(con, organism, total_frame, overwrite=FALSE, append=TRUE)
 	}
 	total_frame
