@@ -16,6 +16,15 @@ argumentHandling <- function(argument, values) {
 convert <- function(genes, organism, input, output, full_table=FALSE) {
 	path <- file.path(path.expand("~"), ".config/geneConvert/annotations.sqlite")
 	con <- dbConnect(RSQLite::SQLite(), path)
+	if (organism == "human") {
+		organism <- "Homo sapiens"
+	}
+	if (organism == "mouse") {
+		organism <- "Mus musculus"
+	}
+	if (organism == "rat") {
+		organsim <- "Rattus norvegicus"
+	}
 	values <- dbReadTable(con, organism)
 	if (!(input %in% colnames(values))) {
 		input <- argumentHandling(input, values)
@@ -25,7 +34,7 @@ convert <- function(genes, organism, input, output, full_table=FALSE) {
 	}
 	new_genes <- unique(genes[!(genes %in% values[[input]])])
 	if (length(new_genes) > 0) {
-		scraped_genes <- scraper(new_genes, organism)
+		scraped_genes <- scraper(new_genes, input, organism)
 		values <- rbind(values, scraped_genes)
 	}
 
@@ -40,13 +49,25 @@ convert <- function(genes, organism, input, output, full_table=FALSE) {
 	}
 }
 
-scraper <- function(genes, organism) {
+scraper <- function(genes, input, organism) {
 	total_list <- list()
 	path <- file.path(path.expand("~"), ".config/geneConvert/annotations.sqlite")
 	con <- dbConnect(RSQLite::SQLite(), path)
 	for (i in seq_along(genes)) {
-		fileURL <- paste0("https://www.ncbi.nlm.nih.gov/gene?term=(", genes[[i]], "[gene])%20AND%20(", organism, "[orgn])")
-		fileURL <- gsub(" ", "%20", fileURL)
+		if (input == "geneloc") {
+			warning("Unable to scrape missing genes based on only geneloc.")
+			break
+		}
+		if (input == "symbol" || input == "description") {
+			fileURL <- paste0("https://www.ncbi.nlm.nih.gov/gene?term=(", genes[[i]], "[gene])%20AND%20(", organism, "[orgn])")
+			fileURL <- gsub(" ", "%20", fileURL)
+		}
+		if (input == "geneid") {
+			fileURL <- paste0("https://www.ncbi.nlm.nih.gov/gene/", genes[[i]])
+		}
+		if (input == "refseq" || input == "protein" || input == "ensembl") {
+			fileURL <- paste0("https://www.ncbi.nlm.nih.gov/gene?term=", genes[[i]])
+		}
 		xData <- getURL(fileURL)
 		doc <- htmlParse(xData, encoding="UTF-8")
 		print(paste0("Scraping ", genes[[i]]))
