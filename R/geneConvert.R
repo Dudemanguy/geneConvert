@@ -73,7 +73,7 @@ scraper <- function(genes, organism) {
 		description <- trimws(gsub("\\[.*", "", description))
 		date <- xmlValue(getNodeSet(doc, "//*[@class='geneid']")[[1]][1]$text)
 		date <- trimws(gsub(".*\n", "", date))
-		hgnc <- xmlValue(getNodeSet(doc, "//span[@class='gn']")[[1]][1]$text)
+		symbol <- xmlValue(getNodeSet(doc, "//span[@class='gn']")[[1]][1]$text)
 		geneid <- xmlValue(getNodeSet(doc, "//*[@class='geneid']")[[1]][1]$text)
 		geneid <- trimws(gsub(".*\\:", "", geneid))
 		geneid <- gsub(",.*", "", geneid)
@@ -110,7 +110,7 @@ scraper <- function(genes, organism) {
 		} else {
 			ensembl <- NA
 		}
-		total_list[[i]] <- data.frame(hgnc, geneid, description, geneloc, refseq, protein, ensembl, date)
+		total_list[[i]] <- data.frame(symbol, geneid, description, geneloc, refseq, protein, ensembl, date)
 	}
 	total_frame <- do.call(rbind, total_list)
 	if (length(total_frame) > 0) {
