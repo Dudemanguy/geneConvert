@@ -1,3 +1,21 @@
+addNewOrganism <- function(organism) {
+	if (class(organism) != "character" || length(organism) != 1) {
+		stop("The organism name must be a character vector of length 1.") 
+	}
+	path <- file.path(path.expand("~"), ".config/geneConvert/annotations.sqlite")
+	con <- dbConnect(RSQLite::SQLite(), path)
+	tables <- dbListTables(con)
+	if (!(organism %in% tables)) {
+		templateFrame <- data.frame(symbol=character(), geneid=character(), description=character(),
+									geneloc=character(), refseq=character(), protein=character(),
+									ensembl=character(), date=character())
+		dbWriteTable(con, organism, templateFrame)
+	} else {
+		stop(paste0("Table named ", organism, " already exists. Quitting."))
+	}
+	dbDisconnect(con)
+}
+
 argumentHandling <- function(argument, values) {
 	valid <- colnames(values)
 	while (!(argument %in% valid)) {
@@ -47,6 +65,24 @@ convert <- function(genes, organism, input, output, full_table=FALSE) {
 		output_values <- values[[output]][m]
 		return (output_values)
 	}
+}
+
+deleteOrgansim <- function(organism) {
+	if (class(organism) != "character" || length(organism) != 1) {
+		stop("The organism name must be a character vector of length 1.") 
+	}
+	path <- file.path(path.expand("~"), ".config/geneConvert/annotations.sqlite")
+	con <- dbConnect(RSQLite::SQLite(), path)
+	tables <- dbListTables(con)
+	if (!(organism %in% tables)) {
+		stop(paste0("Table named ", organism, " does not exist."))
+	} else {
+		confirmation <- readline(paste0("Are you sure you want to delete ", organism, " ? Type 'y' to confirm.\n"))
+		if (confirmation == 'y') {
+			dbRemoveTable(con, organism)
+		}
+	}
+	dbDisconnect(con)
 }
 
 scraper <- function(genes, input, organism) {
