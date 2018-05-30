@@ -118,3 +118,26 @@ scraper <- function(genes, organism) {
 	}
 	total_frame
 }
+
+updateTables <- function() {
+	localpath <- file.path(path.expand("~"), ".config/geneConvert/annotations.sqlite")
+	old <- dbConnect(RSQLite::SQLite(), localpath)
+	oldTables <- dbListTables(old)
+	sourcepath <- system.file("extdata/annotations.sqlite", package="geneConvert")
+	new <- dbConnect(RSQLite::SQLite(), sourcepath)
+	newTables <- dbListTables(new)
+	updatedTables <- newTables[!(newTables %in% oldTables)]
+	if (length(updatedTables) == 0) {
+		message("No new tables found")
+	}
+	if (length(updatedTables) > 0) {
+		templateFrame <- data.frame(symbol=character(), geneid=character(), description=character(),
+									geneloc=character(), refseq=character(), protein=character(),
+									ensembl=character(), date=character())
+		for (i in seq_along(updatedTables)) {
+			dbWriteTable(old, updatedTables[[i]], templateFrame)
+		}
+	}
+	dbDisconnect(old)
+	dbDisconnect(new)
+}
