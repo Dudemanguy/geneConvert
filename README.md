@@ -8,7 +8,7 @@ geneConvert is a simple approach to managing and converting gene annotations. ge
 Using the R package, ``devtools``, run ``devtools::install_github("Dudemanguy911/RNASeqSuite")``.
 
 ## Quick Usage
-By default, geneConvert comes with tables for human, mouse and rat. However, you can add your own organism with the ``addNewOrganism`` function. Note that in order for the scraper to work properly, you must use the correct, scientific name. The main function, ``convert``, can return a dataframe with just the desired output annotation or it can return full data frame showing all annotations for  the  queried genes.
+By default, geneConvert comes with tables for human, mouse and rat. However, you can add your own organism with the ``addNewOrganism`` function. Note that in order for the scraper to work properly, you must use the correct, scientific name with underscores instead of spaces. The main function, ``convert``, can return a dataframe with just the desired output annotation or it can return full data frame showing all annotations for  the  queried genes.
 ```
 library(geneConvert)
 genes <- readLines("gene_list_names.txt")
