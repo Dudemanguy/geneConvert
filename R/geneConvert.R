@@ -31,7 +31,7 @@ argumentHandling <- function(argument, values) {
 	argument
 }
 
-convert <- function(genes, organism, input, output, full_table=FALSE) {
+convert <- function(genes, organism, input, output, full=FALSE) {
 	path <- file.path(path.expand("~"), ".config/geneConvert/annotations.sqlite")
 	con <- dbConnect(RSQLite::SQLite(), path)
 	if (organism == "human") {
@@ -58,12 +58,10 @@ convert <- function(genes, organism, input, output, full_table=FALSE) {
 
 	dbDisconnect(con)
 
-	if (full_table) {
+	if (full) {
 		return (values)
 	} else {
-		m <- match(genes, values[[input]])
-		output_values <- values[[output]][m]
-		return (output_values)
+		return (values[c(input, output)])
 	}
 }
 
