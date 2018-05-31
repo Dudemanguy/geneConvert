@@ -34,15 +34,7 @@ argumentHandling <- function(argument, values) {
 convert <- function(genes, organism, input, output, full=FALSE) {
 	path <- file.path(path.expand("~"), ".config/geneConvert/annotations.sqlite")
 	con <- dbConnect(RSQLite::SQLite(), path)
-	if (organism == "human") {
-		organism <- "Homo sapiens"
-	}
-	if (organism == "mouse") {
-		organism <- "Mus musculus"
-	}
-	if (organism == "rat") {
-		organsim <- "Rattus norvegicus"
-	}
+	organism <- organismSelect(organism)
 	values <- dbReadTable(con, organism)
 	if (!(input %in% colnames(values))) {
 		input <- argumentHandling(input, values)
@@ -65,7 +57,7 @@ convert <- function(genes, organism, input, output, full=FALSE) {
 	}
 }
 
-deleteOrgansim <- function(organism) {
+deleteOrganism <- function(organism) {
 	if (class(organism) != "character" || length(organism) != 1) {
 		stop("The organism name must be a character vector of length 1.") 
 	}
@@ -81,6 +73,32 @@ deleteOrgansim <- function(organism) {
 		}
 	}
 	dbDisconnect(con)
+}
+
+forceUpdate <- function(organism) {
+	organism <- organismSelect(organism)
+	confirmation <- readline(paste0("This will delete all records in the inputted table and then rescrape annotations. Type 'y' to confirm.\n"))
+	if (confirmation == "y") {
+		path <- file.path(path.expand("~"), ".config/geneConvert/annotations.sqlite")
+		con <- dbConnect(RSQLite::SQLite(), path)
+		values <- dbReadTable(con, organism)
+		dbSendQuery(con, paste0("DELETE FROM ", organism))
+		genes <- unique(values[["symbol"]])
+		invisible(scraper(genes, "symbol", organism))
+	}
+}
+
+organismSelect <- function(organism) {
+	if (organism == "human") {
+		organism <- "homo_sapiens"
+	}
+	if (organism == "mouse") {
+		organism <- "mus_musculus"
+	}
+	if (organism == "rat") {
+		organism <- "rattus_norvegicus"
+	}
+	organism
 }
 
 scraper <- function(genes, input, organism) {
@@ -112,7 +130,6 @@ scraper <- function(genes, input, organism) {
 			next
 		}
 		if (search_results) {
-			print('searching')
 			result_values <- xpathApply(doc, "//a[contains(@href, '/gene/')]", xmlValue)
 			index <- match(genes[[i]], result_values)
 			result_xml <- as(xpathApply(doc, "//a[contains(@href, '/gene/')]")[[index]], "character")
