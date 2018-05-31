@@ -95,78 +95,49 @@ scraper <- function(genes, input, organism) {
 			break
 		}
 		if (input == "symbol" || input == "description") {
-			fileURL <- paste0("https://www.ncbi.nlm.nih.gov/gene?term=(", genes[[i]], "[gene])%20AND%20(", organism, "[orgn])")
-			fileURL <- gsub(" ", "%20", fileURL)
+			searchURL <- paste0("https://www.ncbi.nlm.nih.gov/gene?term=(", genes[[i]], "[gene])%20AND%20(", organism, "[orgn])")
+			searchURL <- gsub(" ", "%20", searchURL)
 		}
 		if (input == "geneid") {
-			fileURL <- paste0("https://www.ncbi.nlm.nih.gov/gene/", genes[[i]])
+			searchURL <- paste0("https://www.ncbi.nlm.nih.gov/gene/", genes[[i]])
 		}
 		if (input == "refseq" || input == "protein" || input == "ensembl") {
-			fileURL <- paste0("https://www.ncbi.nlm.nih.gov/gene?term=", genes[[i]])
+			searchURL <- paste0("https://www.ncbi.nlm.nih.gov/gene?term=", genes[[i]])
 		}
-		xData <- getURL(fileURL)
-		doc <- htmlParse(xData, encoding="UTF-8")
+		xdata <- getURL(searchURL)
+		doc <- htmlParse(xdata, encoding="UTF-8")
 		print(paste0("Scraping ", genes[[i]]))
-		valid_URL <- grepl("Full Report", xmlValue(getNodeSet(doc, "/*")[[1]]))
-		search_results <- grepl("Search results", xmlValue(getNodeSet(doc, "/*")[[1]]))
-		if (!valid_URL & !search_results) {
+		exact_match <- grepl("Full Report", xpathApply(doc, "/*", xmlValue))
+		search_results <- grepl("Search results", xpathApply(doc, "/*", xmlValue))
+		if (!exact_match & !search_results) {
 			message("Invalid gene or organism name inputted; skipping")
 			next
 		}
 		if (search_results) {
-			results <- getNodeSet(doc, "//a[contains(@href, '/gene/')]")
-			results_list <- list()
-			for (n in seq_along(results)) {
-				results_list[[n]] <- as(results[[n]], "character")
-			}
-			results_grep <- as.character(results_list[grep(genes[[i]], results_list)])
-			results_split <- strsplit(results_grep, "ref")[[1]][2]
-			id <- as.character(gsub("\\D", "", results_split))
+			print('searching')
+			result_values <- xpathApply(doc, "//a[contains(@href, '/gene/')]", xmlValue)
+			index <- match(genes[[i]], result_values)
+			result_xml <- as(xpathApply(doc, "//a[contains(@href, '/gene/')]")[[index]], "character")
+			result_split <- strsplit(result_xml, "ref")[[1]][2]
+			id <- as.character(gsub("\\D", "", result_split))
 			newURL <- paste0("https://www.ncbi.nlm.nih.gov/gene/", id)
-			xData <- getURL(newURL)
-			doc <- htmlParse(xData, encoding="UTF-8")
+			xdata <- getURL(newURL)
+			doc <- htmlParse(xdata, encoding="UTF-8")
 		}
-		description <- xmlValue(getNodeSet(doc, "//title")[[1]][1]$text)
-		description <- trimws(gsub("\\[.*", "", description))
-		date <- xmlValue(getNodeSet(doc, "//*[@class='geneid']")[[1]][1]$text)
-		date <- trimws(gsub(".*\n", "", date))
-		symbol <- xmlValue(getNodeSet(doc, "//span[@class='gn']")[[1]][1]$text)
-		geneid <- xmlValue(getNodeSet(doc, "//*[@class='geneid']")[[1]][1]$text)
+		symbol <- unlist(xpathApply(doc, "//span[@class='gn']", xmlValue))
+		geneid <- unlist(xpathApply(doc, "//*[@class='geneid']", xmlValue))
 		geneid <- trimws(gsub(".*\\:", "", geneid))
 		geneid <- gsub(",.*", "", geneid)
-		description <- xmlValue(getNodeSet(doc, "//title")[[1]][1]$text)
+		description <- unlist(xpathApply(doc, "//title", xmlValue))
 		description <- trimws(gsub("\\[.*", "", description))
-		geneloc <- xmlValue(getNodeSet(doc, "//p[@class='withnote margin_t2em']/strong")[[1]][1]$text)
+		geneloc <- unlist(xpathApply(doc, "//p[@class='withnote margin_t2em']/strong", xmlValue))
 		geneloc <- trimws(gsub(".*-", "", geneloc))
-		refseq_length <- getNodeSet(doc, "//p/a[contains(@href, 'NM')]")
-		if (length(refseq_length) > 0) {
-			refseq <- list()
-			for (j in seq_along(refseq_length)) {
-				refseq[[j]] <- xmlValue(refseq_length[[j]][1]$text)
-			}
-			refseq <- unlist(refseq)
-		} else {
-			refseq <- NA
-			refseq_length <- NA
-		}
-		protein_length <- getNodeSet(doc, "//p/a[contains(@href, 'protein/NP_')]")
-		if (length(protein_length) > 0) {
-			protein <- list()
-			for (k in seq_along(protein_length)) {
-				protein[[k]] <- xmlValue(protein_length[[k]][1]$text)
-			}
-			protein <- unlist(protein)
-		} else {
-			protein <- NA
-			protein_length <- NA
-		}
-		ensembl_check <- getNodeSet(doc, "//dd/a[@class='genome-browser-link']")
-		if (length(ensembl_check) > 0) {
-			ensembl <- xmlValue(ensembl_check[[1]][1]$text)
-			ensembl <- gsub(".*\\:", "", ensembl)
-		} else {
-			ensembl <- NA
-		}
+		refseq <- unlist(xpathApply(doc, "//p/a[contains(@href, 'NM')]", xmlValue))
+		protein <- unlist(xpathApply(doc, "//p/a[contains(@href, 'protein/NP_')]", xmlValue))
+		ensembl <- unlist(xpathApply(doc, "//dd/a[@class='genome-browser-link']", xmlValue))
+		ensembl <- gsub(".*\\:", "", ensembl)
+		date <- unlist(xpathApply(doc, "//*[@class='geneid']", xmlValue))
+		date <- trimws(gsub(".*\n", "", date))
 		total_list[[i]] <- data.frame(symbol, geneid, description, geneloc, refseq, protein, ensembl, date)
 	}
 	total_frame <- do.call(rbind, total_list)
