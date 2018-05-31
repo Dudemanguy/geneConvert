@@ -42,6 +42,7 @@ convert <- function(genes, organism, input, output, full=FALSE) {
 	if (!(output %in% colnames(values))) {
 		output <- argumentHandling(output, values)
 	}
+	genes <- matchCase(genes, organism)
 	new_genes <- unique(genes[!(genes %in% values[[input]])])
 	if (length(new_genes) > 0) {
 		scraped_genes <- scraper(new_genes, input, organism)
@@ -86,6 +87,17 @@ forceUpdate <- function(organism) {
 		genes <- unique(values[["symbol"]])
 		invisible(scraper(genes, "symbol", organism))
 	}
+}
+
+matchCase <- function(genes, organism) {
+	if (organism == "homo_sapiens") {
+		toupper(genes)
+	}
+	if (organism == "mus_musculus" || "rattus_norvegicus") {
+		split <- strsplit(genes, " ")
+		genes <- paste0(toupper(substring(split, 1, 1)), tolower(substring(split, 2)))
+	}
+	genes
 }
 
 organismSelect <- function(organism) {
