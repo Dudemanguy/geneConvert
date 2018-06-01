@@ -7,7 +7,7 @@ addNewOrganism <- function(organism) {
 	tables <- dbListTables(con)
 	if (!(organism %in% tables)) {
 		templateFrame <- data.frame(symbol=character(), geneid=character(), description=character(),
-									geneloc=character(), refseq=character(), protein=character(),
+									geneloc=character(), transcript=character(), protein=character(),
 									ensembl=character(), date=character())
 		dbWriteTable(con, organism, templateFrame)
 	} else {
@@ -133,7 +133,7 @@ scraper <- function(genes, input, organism) {
 		if (input == "geneid") {
 			searchURL <- paste0("https://www.ncbi.nlm.nih.gov/gene/", genes[[i]])
 		}
-		if (input == "refseq" || input == "protein" || input == "ensembl") {
+		if (input == "transcript" || input == "protein" || input == "ensembl") {
 			searchURL <- paste0("https://www.ncbi.nlm.nih.gov/gene?term=", genes[[i]])
 		}
 		xdata <- getURL(searchURL)
@@ -163,13 +163,13 @@ scraper <- function(genes, input, organism) {
 		description <- trimws(gsub("\\[.*", "", description))
 		geneloc <- unlist(xpathApply(doc, "//p[@class='withnote margin_t2em']/strong", xmlValue))
 		geneloc <- trimws(gsub(".*-", "", geneloc))
-		refseq <- unlist(xpathApply(doc, "//p/a[contains(@href, 'NM')]", xmlValue))
+		transcript <- unlist(xpathApply(doc, "//p/a[contains(@href, 'NM')]", xmlValue))
 		protein <- unlist(xpathApply(doc, "//p/a[contains(@href, 'protein/NP_')]", xmlValue))
 		ensembl <- unlist(xpathApply(doc, "//dd/a[@class='genome-browser-link']", xmlValue))
 		ensembl <- gsub(".*\\:", "", ensembl)
 		date <- unlist(xpathApply(doc, "//*[@class='geneid']", xmlValue))
 		date <- trimws(gsub(".*\n", "", date))
-		total_list[[i]] <- data.frame(symbol, geneid, description, geneloc, refseq, protein, ensembl, date)
+		total_list[[i]] <- data.frame(symbol, geneid, description, geneloc, transcript, protein, ensembl, date)
 	}
 	total_frame <- do.call(rbind, total_list)
 	if (length(total_frame) > 0) {
@@ -191,7 +191,7 @@ updateTables <- function() {
 	}
 	if (length(updatedTables) > 0) {
 		templateFrame <- data.frame(symbol=character(), geneid=character(), description=character(),
-									geneloc=character(), refseq=character(), protein=character(),
+									geneloc=character(), transcript=character(), protein=character(),
 									ensembl=character(), date=character())
 		for (i in seq_along(updatedTables)) {
 			dbWriteTable(old, updatedTables[[i]], templateFrame)
