@@ -35,7 +35,7 @@ argumentHandling <- function(argument, values) {
 	argument
 }
 
-convert <- function(genes, organism, input, output, full=FALSE) {
+convert <- function(genes, organism, input, output, full=FALSE, no_version=TRUE) {
 	path <- file.path(path.expand("~"), ".config/geneConvert/annotations.sqlite")
 	con <- dbConnect(RSQLite::SQLite(), path)
 	organism <- organismSelect(organism)
@@ -43,6 +43,16 @@ convert <- function(genes, organism, input, output, full=FALSE) {
 	if (!(input %in% colnames(values))) {
 		input <- argumentHandling(input, values)
 	}
+	if (no_version && (identical(input, "geneloc") || identical(input, "protein")
+			|| identical(input, "transcript"))) {
+		geneloc <- gsub("\\..*", "", values[["geneloc"]])
+		protein <- gsub("\\..*", "", values[["protein"]])
+		transcript <- gsub("\\..*", "", values[["transcript"]])
+		values[["geneloc"]] <- geneloc
+		values[["protein"]] <- protein
+		values[["transcript"]] <- transcript
+	}
+		
 	if (any(!(output %in% colnames(values)))) {
 		output <- argumentHandling(output, values)
 	}
@@ -52,8 +62,16 @@ convert <- function(genes, organism, input, output, full=FALSE) {
 		scraped_genes <- scraper(new_genes, input, organism)
 		values <- rbind(values, scraped_genes)
 	}
-
 	dbDisconnect(con)
+
+	if (no_version) {
+		geneloc <- gsub("\\..*", "", values[["geneloc"]])
+		protein <- gsub("\\..*", "", values[["protein"]])
+		transcript <- gsub("\\..*", "", values[["transcript"]])
+		values[["geneloc"]] <- geneloc
+		values[["protein"]] <- protein
+		values[["transcript"]] <- transcript
+	}
 
 	if (full) {
 		return (values)
@@ -168,8 +186,14 @@ scraper <- function(genes, input, organism) {
 			transcript <- unlist(xpathApply(doc, "//p/a[contains(@href, 'NR')]", xmlValue))
 		}
 		protein <- unlist(xpathApply(doc, "//p/a[contains(@href, 'protein/NP_')]", xmlValue))
+		if (identical(protein, NULL)) {
+			protein <- NA
+		}
 		ensembl <- unlist(xpathApply(doc, "//dd/a[@class='genome-browser-link']", xmlValue))
 		ensembl <- gsub(".*\\:", "", ensembl)
+		if (identical(ensembl, character(0))) {
+			ensembl <- NA
+		}
 		date <- unlist(xpathApply(doc, "//*[@class='geneid']", xmlValue))
 		date <- trimws(gsub(".*\n", "", date))
 		total_list[[i]] <- data.frame(symbol, geneid, description, geneloc, transcript, protein, ensembl, date)
