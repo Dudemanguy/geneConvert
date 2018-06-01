@@ -56,7 +56,9 @@ convert <- function(genes, organism, input, output, full=FALSE, no_version=TRUE)
 	if (any(!(output %in% colnames(values)))) {
 		output <- argumentHandling(output, values)
 	}
-	genes <- matchCase(genes, organism)
+	if (identical(input, "symbol")) {
+		genes <- matchCase(genes, organism)
+	}
 	new_genes <- unique(genes[!(genes %in% values[[input]])])
 	if (length(new_genes) > 0) {
 		scraped_genes <- scraper(new_genes, input, organism)
@@ -118,6 +120,12 @@ matchCase <- function(genes, organism) {
 	if (identical(organism, "mus_musculus") || identical(organism, "rattus_norvegicus")) {
 		split <- strsplit(genes, " ")
 		genes <- paste0(toupper(substring(split, 1, 1)), tolower(substring(split, 2)))
+		if (any(grepl("-", genes))) {
+			hyphen_genes <- genes[grep("-", genes)]
+			no_hyphen_genes <- genes[genes != hyphen_genes]
+			hyphen_genes <- toupper(hyphen_genes)
+			genes <- c(no_hyphen_genes, hyphen_genes)
+		}
 	}
 	genes
 }
