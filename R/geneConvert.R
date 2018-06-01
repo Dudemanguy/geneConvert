@@ -17,15 +17,19 @@ addNewOrganism <- function(organism) {
 }
 
 argumentHandling <- function(argument, values) {
-	valid <- colnames(values)
-	while (!(argument %in% valid)) {
-		argument_grep <- grep(argument, valid, ignore.case=TRUE)
-		valid <- valid[argument_grep]
-		if (length(valid) == 0) {
-			stop("No results found for the entered annotation. Please try again")
-		} else {
-			print(valid)
-			argument <- readline("Type in the name of the input id from the list. \n")
+	valid_names <- colnames(values)
+	argument_grep <- list()
+	valid_return <- list()
+	for (i in seq_along(argument)) {
+		while (!(argument[[i]] %in% valid_names)) {
+			argument_grep[[i]] <- grep(argument[[i]], valid_names, ignore.case=TRUE)
+			valid_return[[i]] <- valid_names[argument_grep[[i]]]
+			if (identical(valid_return[[i]], character(0))) {
+				stop("No results found for the entered annotation. Please try again")
+			} else {
+				print(valid_return[[i]])
+				argument[[i]] <- readline("Type in the name of the input id from the list. \n")
+			}
 		}
 	}
 	argument
@@ -39,7 +43,7 @@ convert <- function(genes, organism, input, output, full=FALSE) {
 	if (!(input %in% colnames(values))) {
 		input <- argumentHandling(input, values)
 	}
-	if (!(output %in% colnames(values))) {
+	if (any(!(output %in% colnames(values)))) {
 		output <- argumentHandling(output, values)
 	}
 	genes <- matchCase(genes, organism)
@@ -93,7 +97,7 @@ matchCase <- function(genes, organism) {
 	if (organism == "homo_sapiens") {
 		toupper(genes)
 	}
-	if (organism == "mus_musculus" || "rattus_norvegicus") {
+	if (identical(organism, "mus_musculus") || identical(organism, "rattus_norvegicus")) {
 		split <- strsplit(genes, " ")
 		genes <- paste0(toupper(substring(split, 1, 1)), tolower(substring(split, 2)))
 	}
