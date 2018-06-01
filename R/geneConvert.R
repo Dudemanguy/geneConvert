@@ -93,7 +93,7 @@ deleteOrganism <- function(organism) {
 		stop(paste0("Table named ", organism, " does not exist."))
 	} else {
 		confirmation <- readline(paste0("Are you sure you want to delete ", organism, " ? Type 'y' to confirm.\n"))
-		if (confirmation == 'y') {
+		if (identical(confirmation, "y")) {
 			dbRemoveTable(con, organism)
 		}
 	}
@@ -103,7 +103,7 @@ deleteOrganism <- function(organism) {
 forceUpdate <- function(organism) {
 	organism <- organismSelect(organism)
 	confirmation <- readline(paste0("This will delete all records in the inputted table and then rescrape annotations. Type 'y' to confirm.\n"))
-	if (confirmation == "y") {
+	if (identical(confirmation, "y")) {
 		path <- file.path(path.expand("~"), ".config/geneConvert/annotations.sqlite")
 		con <- dbConnect(RSQLite::SQLite(), path)
 		values <- dbReadTable(con, organism)
@@ -114,7 +114,7 @@ forceUpdate <- function(organism) {
 }
 
 matchCase <- function(genes, organism) {
-	if (organism == "homo_sapiens") {
+	if (identical(organism, "homo_sapiens")) {
 		toupper(genes)
 	}
 	if (identical(organism, "mus_musculus") || identical(organism, "rattus_norvegicus")) {
@@ -131,13 +131,13 @@ matchCase <- function(genes, organism) {
 }
 
 organismSelect <- function(organism) {
-	if (organism == "human") {
+	if (identical(organism, "human")) {
 		organism <- "homo_sapiens"
 	}
-	if (organism == "mouse") {
+	if (identical(organism, "mouse")) {
 		organism <- "mus_musculus"
 	}
-	if (organism == "rat") {
+	if (identical(organism, "rat")) {
 		organism <- "rattus_norvegicus"
 	}
 	organism
@@ -148,18 +148,18 @@ scraper <- function(genes, input, organism) {
 	path <- file.path(path.expand("~"), ".config/geneConvert/annotations.sqlite")
 	con <- dbConnect(RSQLite::SQLite(), path)
 	for (i in seq_along(genes)) {
-		if (input == "geneloc") {
+		if (identical(input, "geneloc")) {
 			warning("Unable to scrape missing genes based on only geneloc.")
 			break
 		}
-		if (input == "symbol" || input == "description") {
+		if (identical(input, "symbol") || identical(input, "description")) {
 			searchURL <- paste0("https://www.ncbi.nlm.nih.gov/gene?term=(", genes[[i]], "[gene])%20AND%20(", organism, "[orgn])")
 			searchURL <- gsub(" ", "%20", searchURL)
 		}
-		if (input == "geneid") {
+		if (identical(input, "geneid")) {
 			searchURL <- paste0("https://www.ncbi.nlm.nih.gov/gene/", genes[[i]])
 		}
-		if (input == "transcript" || input == "protein" || input == "ensembl") {
+		if (identical(input, "transcript") || identical(input, "protein") || indentical(input, "ensembl")) {
 			searchURL <- paste0("https://www.ncbi.nlm.nih.gov/gene?term=", genes[[i]])
 		}
 		xdata <- getURL(searchURL)
@@ -221,7 +221,7 @@ updateTables <- function() {
 	new <- dbConnect(RSQLite::SQLite(), sourcepath)
 	newTables <- dbListTables(new)
 	updatedTables <- newTables[!(newTables %in% oldTables)]
-	if (length(updatedTables) == 0) {
+	if (identical(length(updatedTables), 0)) {
 		message("No new tables found")
 	}
 	if (length(updatedTables) > 0) {
