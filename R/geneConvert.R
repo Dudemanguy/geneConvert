@@ -189,6 +189,9 @@ scraper <- function(genes, input, organism) {
 		description <- trimws(gsub("\\[.*", "", description))
 		geneloc <- unlist(xpathApply(doc, "//p[@class='withnote margin_t2em']/strong", xmlValue))
 		geneloc <- trimws(gsub(".*-", "", geneloc))
+		if (identical(geneloc, character(0))) {
+			geneloc <-  NA
+		}
 		transcript <- unlist(xpathApply(doc, "//p/a[contains(@href, 'NM')]", xmlValue))
 		if (identical(transcript, NULL)) {
 			transcript <- unlist(xpathApply(doc, "//p/a[contains(@href, 'NR')]", xmlValue))
