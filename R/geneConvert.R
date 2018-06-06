@@ -35,7 +35,7 @@ argumentHandling <- function(argument, values) {
 	argument
 }
 
-convert <- function(genes, organism, input, output, full=FALSE, no_version=TRUE, query=3000) {
+convert <- function(genes, organism, input, output, scrape=TRUE, full=FALSE, no_version=TRUE, query=3000) {
 	path <- file.path(path.expand("~"), ".config/geneConvert/annotations.sqlite")
 	con <- dbConnect(RSQLite::SQLite(), path)
 	organism <- organismSelect(organism)
@@ -63,7 +63,7 @@ convert <- function(genes, organism, input, output, full=FALSE, no_version=TRUE,
 		genes <- genes[!(grepl("dup", genes))]
 	}
 	new_genes <- unique(genes[!(genes %in% values[[input]])])
-	if (length(new_genes) > 0) {
+	if (length(new_genes) > 0 && identical(scrape, TRUE)) {
 		scraped_genes <- scraper(new_genes, input, organism, query)
 		values <- rbind(values, scraped_genes)
 	}
