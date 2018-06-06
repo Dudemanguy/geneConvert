@@ -4,7 +4,7 @@ Title: Simple and fast batch gene id conversion.
 Author: <random342@airmail.cc>
 Maintainer: <random342@airmail.cc>
 Depends: methods
-Imports: utils, XML, RCurl
+Imports: utils, XML, curl
 Suggests: 
 VignetteBuilder: knitr
 biocViews: Annotation

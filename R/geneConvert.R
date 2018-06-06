@@ -35,7 +35,7 @@ argumentHandling <- function(argument, values) {
 	argument
 }
 
-convert <- function(genes, organism, input, output, full=FALSE, no_version=TRUE) {
+convert <- function(genes, organism, input, output, full=FALSE, no_version=TRUE, query=3000) {
 	path <- file.path(path.expand("~"), ".config/geneConvert/annotations.sqlite")
 	con <- dbConnect(RSQLite::SQLite(), path)
 	organism <- organismSelect(organism)
@@ -59,9 +59,12 @@ convert <- function(genes, organism, input, output, full=FALSE, no_version=TRUE)
 	if (identical(input, "symbol")) {
 		genes <- matchCase(genes, organism)
 	}
+	if (identical(input, "transcript")) {
+		genes <- genes[!(grepl("dup", genes))]
+	}
 	new_genes <- unique(genes[!(genes %in% values[[input]])])
 	if (length(new_genes) > 0) {
-		scraped_genes <- scraper(new_genes, input, organism)
+		scraped_genes <- scraper(new_genes, input, organism, query)
 		values <- rbind(values, scraped_genes)
 	}
 	dbDisconnect(con)
@@ -100,7 +103,7 @@ deleteOrganism <- function(organism) {
 	dbDisconnect(con)
 }
 
-forceUpdate <- function(organism) {
+forceUpdate <- function(organism, query=3000) {
 	organism <- organismSelect(organism)
 	confirmation <- readline(paste0("This will delete all records in the inputted table and then rescrape annotations. Type 'y' to confirm.\n"))
 	if (identical(confirmation, "y")) {
@@ -109,7 +112,7 @@ forceUpdate <- function(organism) {
 		values <- dbReadTable(con, organism)
 		dbSendQuery(con, paste0("DELETE FROM ", organism))
 		genes <- unique(values[["symbol"]])
-		invisible(scraper(genes, "symbol", organism))
+		invisible(scraper(genes, "symbol", organism, query))
 	}
 }
 
@@ -143,26 +146,55 @@ organismSelect <- function(organism) {
 	organism
 }
 
-scraper <- function(genes, input, organism) {
-	total_list <- list()
-	path <- file.path(path.expand("~"), ".config/geneConvert/annotations.sqlite")
-	con <- dbConnect(RSQLite::SQLite(), path)
+retrieveURLs <- function(genes, input, organism) {
+	searchURLs <- c()
 	for (i in seq_along(genes)) {
 		if (identical(input, "geneloc")) {
 			warning("Unable to scrape missing genes based on only geneloc.")
 			break
 		}
 		if (identical(input, "symbol") || identical(input, "description")) {
-			searchURL <- paste0("https://www.ncbi.nlm.nih.gov/gene?term=(", genes[[i]], "[gene])%20AND%20(", organism, "[orgn])")
-			searchURL <- gsub(" ", "%20", searchURL)
+			searchURLs[[i]] <- paste0("https://www.ncbi.nlm.nih.gov/gene?term=(", genes[[i]], "[gene])%20AND%20(", organism, "[orgn])")
+			searchURLs[[i]] <- gsub(" ", "%20", searchURLs[[i]])
 		}
 		if (identical(input, "geneid")) {
-			searchURL <- paste0("https://www.ncbi.nlm.nih.gov/gene/", genes[[i]])
+			searchURLs[[i]] <- paste0("https://www.ncbi.nlm.nih.gov/gene/", genes[[i]])
 		}
-		if (identical(input, "transcript") || identical(input, "protein") || indentical(input, "ensembl")) {
-			searchURL <- paste0("https://www.ncbi.nlm.nih.gov/gene?term=", genes[[i]])
+		if (identical(input, "transcript") || identical(input, "protein") || identical(input, "ensembl")) {
+			searchURLs[[i]] <- paste0("https://www.ncbi.nlm.nih.gov/gene?term=", genes[[i]])
 		}
-		xdata <- getURL(searchURL)
+	}
+	searchURLs
+}
+
+scraper <- function(genes, input, organism, query=3000) {
+	total_list <- list()
+	path <- file.path(path.expand("~"), ".config/geneConvert/annotations.sqlite")
+	con <- dbConnect(RSQLite::SQLite(), path)
+	searchURLs <- retrieveURLs(genes, input, organism)
+	data <- list()
+	success <- function(res) {
+		data <<- c(data, list(res))
+	}
+	failure <- function(msg) {
+		cat("Request failed.", msg, "\n")
+	}
+	if (identical(query, "max")) {
+		query <- length(searchURLs)
+	}
+	for (i in seq_along(searchURLs)) {
+		curl_fetch_multi(searchURLs[[i]], success, failure)
+		if (identical((i %% query), 0)) {
+			print(paste("Queries", (i+1) - query, "-", i, "sent."))
+			multi_run()
+		}
+		if (identical(i, length(searchURLs))) {
+			print(paste(length(searchURLs), "queries sent."))
+		}
+	}
+	multi_run()
+	for (i in seq_along(data)) {
+		xdata <- rawToChar(data[[i]]$content)
 		doc <- htmlParse(xdata, encoding="UTF-8")
 		print(paste0("Scraping ", genes[[i]]))
 		exact_match <- grepl("Full Report", xpathApply(doc, "/*", xmlValue))
@@ -196,6 +228,9 @@ scraper <- function(genes, input, organism) {
 		if (identical(transcript, NULL)) {
 			transcript <- unlist(xpathApply(doc, "//p/a[contains(@href, 'NR')]", xmlValue))
 		}
+		if (identical(transcript, NULL)) {
+			transcript <- NA
+		}
 		protein <- unlist(xpathApply(doc, "//p/a[contains(@href, 'protein/NP_')]", xmlValue))
 		if (identical(protein, NULL)) {
 			protein <- NA
@@ -204,6 +239,12 @@ scraper <- function(genes, input, organism) {
 		ensembl <- gsub(".*\\:", "", ensembl)
 		if (identical(ensembl, character(0))) {
 			ensembl <- NA
+		}
+		if (length(ensembl) != length(transcript) &&
+			length(ensembl) > 1) {
+			for (i in ((length(ensembl) + 1):length(transcript))) {
+				ensembl[[i]] <- NA
+			}
 		}
 		date <- unlist(xpathApply(doc, "//*[@class='geneid']", xmlValue))
 		date <- trimws(gsub(".*\n", "", date))
