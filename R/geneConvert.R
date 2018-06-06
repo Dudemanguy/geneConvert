@@ -255,6 +255,7 @@ scraper <- function(genes, input, organism, query=3000) {
 	if (length(total_frame) > 0) {
 		dbWriteTable(con, organism, total_frame, overwrite=FALSE, append=TRUE)
 	}
+	dbDisconnect(con)
 	total_frame
 }
 
