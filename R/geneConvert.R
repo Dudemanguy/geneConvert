@@ -61,6 +61,7 @@ convert <- function(genes, organism, input, output, scrape=TRUE, full=FALSE, no_
 	}
 	if (identical(input, "transcript")) {
 		genes <- genes[!(grepl("dup", genes))]
+		genes <- genes[!(grepl("chr", genes))]
 	}
 	new_genes <- unique(genes[!(genes %in% values[[input]])])
 	if (length(new_genes) > 0 && identical(scrape, TRUE)) {
