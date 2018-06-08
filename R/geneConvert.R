@@ -35,7 +35,7 @@ argumentHandling <- function(argument, values) {
 	argument
 }
 
-convert <- function(genes, organism, input, output, scrape=TRUE, full=FALSE, no_version=TRUE, query=3000) {
+convert <- function(genes, organism, input, output, scrape=TRUE, force=FALSE, full=FALSE, no_version=TRUE, query=3000) {
 	path <- file.path(path.expand("~"), ".config/geneConvert/annotations.sqlite")
 	con <- dbConnect(RSQLite::SQLite(), path)
 	organism <- organismSelect(organism)
@@ -64,9 +64,12 @@ convert <- function(genes, organism, input, output, scrape=TRUE, full=FALSE, no_
 		genes <- genes[!(grepl("chr", genes))]
 	}
 	new_genes <- unique(genes[!(genes %in% values[[input]])])
-	if (length(new_genes) > 0 && identical(scrape, TRUE)) {
+	if (length(new_genes) > 0 && identical(scrape, TRUE) && identical(force, FALSE)) {
 		scraped_genes <- scraper(new_genes, input, organism, query)
 		values <- rbind(values, scraped_genes)
+	}
+	if (identical(force, TRUE)) {
+		values <- scraper(genes, input, organism, query)
 	}
 	dbDisconnect(con)
 
@@ -191,9 +194,9 @@ scraper <- function(genes, input, organism, query=3000) {
 		}
 		if (identical(i, length(searchURLs))) {
 			print(paste(length(searchURLs), "queries sent."))
+			multi_run()
 		}
 	}
-	multi_run()
 	for (i in seq_along(data)) {
 		xdata <- rawToChar(data[[i]]$content)
 		doc <- htmlParse(xdata, encoding="UTF-8")
@@ -225,14 +228,16 @@ scraper <- function(genes, input, organism, query=3000) {
 		if (identical(geneloc, character(0))) {
 			geneloc <-  NA
 		}
-		transcript <- unlist(xpathApply(doc, "//p/a[contains(@href, 'NM')]", xmlValue))
-		if (identical(transcript, NULL)) {
-			transcript <- unlist(xpathApply(doc, "//p/a[contains(@href, 'NR')]", xmlValue))
-		}
+		transcript_nm <- unlist(xpathApply(doc, "//p/a[contains(@href, 'NM')]", xmlValue))
+		transcript_nr <- unlist(xpathApply(doc, "//p/a[contains(@href, 'NR')]", xmlValue))
+		transcript <- c(transcript_nm, transcript_nr)
 		if (identical(transcript, NULL)) {
 			transcript <- NA
 		}
 		protein <- unlist(xpathApply(doc, "//p/a[contains(@href, 'protein/NP_')]", xmlValue))
+		for (i in (length(protein):length(transcript))) {
+			protein[[i]] <- NA
+		}
 		if (identical(protein, NULL)) {
 			protein <- NA
 		}
