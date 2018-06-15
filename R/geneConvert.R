@@ -66,6 +66,8 @@ convert <- function(genes, organism, input, output, scrape=TRUE, force=FALSE, fu
 	new_genes <- unique(genes[!(genes %in% values[[input]])])
 	if (length(new_genes) > 0 && identical(scrape, TRUE) && identical(force, FALSE)) {
 		scraped_genes <- scraper(new_genes, input, organism, query)
+		m <- match(genes, values[[input]])
+		values <- values[m,]
 		values <- rbind(values, scraped_genes)
 	}
 	if (identical(force, TRUE)) {
@@ -235,8 +237,10 @@ scraper <- function(genes, input, organism, query=3000) {
 			transcript <- NA
 		}
 		protein <- unlist(xpathApply(doc, "//p/a[contains(@href, 'protein/NP_')]", xmlValue))
-		for (i in (length(protein):length(transcript))) {
-			protein[[i]] <- NA
+		if (length(protein) < length(transcript)) {
+			for (i in ((length(protein) + 1):length(transcript))) {
+				protein[[i]] <- NA
+			}
 		}
 		if (identical(protein, NULL)) {
 			protein <- NA
