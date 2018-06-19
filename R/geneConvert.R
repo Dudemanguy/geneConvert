@@ -6,7 +6,7 @@ addNewOrganism <- function(organism) {
 	con <- dbConnect(RSQLite::SQLite(), path)
 	tables <- dbListTables(con)
 	if (!(organism %in% tables)) {
-		templateFrame <- data.frame(symbol=character(), geneid=character(), description=character(),
+		templateFrame <- data.frame(geneid=numeric(), symbol=character(), description=character(),
 									geneloc=character(), transcript=character(), protein=character(),
 									ensembl=character(), date=character())
 		dbWriteTable(con, organism, templateFrame)
@@ -263,7 +263,7 @@ updateTables <- function() {
 		message("No new tables found")
 	}
 	if (length(updatedTables) > 0) {
-		templateFrame <- data.frame(symbol=character(), geneid=character(), description=character(),
+		templateFrame <- data.frame(geneid=character(), symbol=character(), description=character(),
 									geneloc=character(), transcript=character(), protein=character(),
 									ensembl=character(), date=character())
 		for (i in seq_along(updatedTables)) {
