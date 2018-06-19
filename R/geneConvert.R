@@ -190,11 +190,16 @@ scraper <- function(genes, input, organism, query=3000) {
 	}
 	for (i in seq_along(searchURLs)) {
 		curl_fetch_multi(searchURLs[[i]], success, failure)
-		if (identical((i %% query), 0)) {
-			print(paste("Queries", (i+1) - query, "-", i, "sent."))
-			multi_run()
-		}
-		if (identical(i, length(searchURLs))) {
+		if (length(searchURLs) > query) {
+			if (identical((i %% query), 0)) {
+				print(paste("Queries", (i+1) - query, "-", i, "sent."))
+				multi_run()
+			}
+			if (i > (floor(length(searchURLs)/query) * query)) {
+				print(paste("Queries", i, "-", length(genes), "sent."))
+				multi_run()
+			}
+		} else {
 			print(paste(length(searchURLs), "queries sent."))
 			multi_run()
 		}
@@ -227,43 +232,21 @@ scraper <- function(genes, input, organism, query=3000) {
 		description <- trimws(gsub("\\[.*", "", description))
 		geneloc <- unlist(xpathApply(doc, "//p[@class='withnote margin_t2em']/strong", xmlValue))
 		geneloc <- trimws(gsub(".*-", "", geneloc))
-		if (identical(geneloc, character(0))) {
-			geneloc <-  NA
-		}
 		transcript_nm <- unlist(xpathApply(doc, "//p/a[contains(@href, 'NM')]", xmlValue))
 		transcript_nr <- unlist(xpathApply(doc, "//p/a[contains(@href, 'NR')]", xmlValue))
-		transcript <- c(transcript_nm, transcript_nr)
-		if (identical(transcript, NULL)) {
-			transcript <- NA
-		}
-		protein <- unlist(xpathApply(doc, "//p/a[contains(@href, 'protein/NP_')]", xmlValue))
-		if (length(protein) < length(transcript)) {
-			for (i in ((length(protein) + 1):length(transcript))) {
-				protein[[i]] <- NA
-			}
-		}
-		if (identical(protein, NULL)) {
-			protein <- NA
-		}
+		transcript <- paste(c(transcript_nm, transcript_nr), collapse=",")
+		protein <- paste(xpathApply(doc, "//p/a[contains(@href, 'protein/NP_')]", xmlValue), collapse=",")
 		ensembl <- unlist(xpathApply(doc, "//dd/a[@class='genome-browser-link']", xmlValue))
 		ensembl <- gsub(".*\\:", "", ensembl)
-		if (identical(ensembl, character(0))) {
-			ensembl <- NA
-		}
-		if (length(ensembl) != length(transcript) &&
-			length(ensembl) > 1) {
-			for (i in ((length(ensembl) + 1):length(transcript))) {
-				ensembl[[i]] <- NA
-			}
-		}
 		date <- unlist(xpathApply(doc, "//*[@class='geneid']", xmlValue))
 		date <- trimws(gsub(".*\n", "", date))
-		total_list[[i]] <- data.frame(symbol, geneid, description, geneloc, transcript, protein, ensembl, date)
+		values <- paste(geneid, sQuote(symbol), sQuote(description), sQuote(geneloc), sQuote(transcript), sQuote(protein), sQuote(ensembl), sQuote(date), sep=",")
+		options(useFancyQuotes = FALSE)
+		rs <- dbSendStatement(con, paste("INSERT INTO", organism, "VALUES (", values, ");"))
+		dbClearResult(rs)
+		total_list[[i]] <- data.frame(geneid, symbol, description, geneloc, transcript, protein, ensembl, date)
 	}
 	total_frame <- do.call(rbind, total_list)
-	if (length(total_frame) > 0) {
-		dbWriteTable(con, organism, total_frame, overwrite=FALSE, append=TRUE)
-	}
 	dbDisconnect(con)
 	total_frame
 }
