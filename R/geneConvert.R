@@ -45,9 +45,9 @@ convert <- function(genes, organism, input, output, scrape=TRUE, force=FALSE, fu
 	}
 	if (no_version && (identical(input, "geneloc") || identical(input, "protein")
 			|| identical(input, "transcript"))) {
-		geneloc <- gsub("\\..*", "", values[["geneloc"]])
-		protein <- gsub("\\..*", "", values[["protein"]])
-		transcript <- gsub("\\..*", "", values[["transcript"]])
+		geneloc <- gsub("\\.\\d+", "", values[["geneloc"]])
+		protein <- gsub("\\.\\d+", "", values[["protein"]])
+		transcript <- gsub("\\.\\d+", "", values[["transcript"]])
 		values[["geneloc"]] <- geneloc
 		values[["protein"]] <- protein
 		values[["transcript"]] <- transcript
@@ -63,27 +63,63 @@ convert <- function(genes, organism, input, output, scrape=TRUE, force=FALSE, fu
 		genes <- genes[!(grepl("dup", genes))]
 		genes <- genes[!(grepl("chr", genes))]
 	}
-	new_genes <- unique(genes[!(genes %in% values[[input]])])
+	new_genes <- character()
+	split_genes <- list()
+	for (i in seq_along(genes)) {
+		if (grepl(",", genes[i])) {
+			gene_split <- unlist(strsplit(genes[i], ","))
+			split_genes[[i]] <- gene_split
+		} else if (any(grepl(genes[i], values[[input]]))) {
+			next
+		} else {
+			new_genes[i] <- genes[i]
+		}
+	}
+	split_genes <- unique(unlist(split_genes))
+	for (i in seq_along(split_genes)) {
+		if (any(grepl(split_genes[i], values[[input]]))) {
+			next
+		} else {
+			new_genes[i+length(new_genes)] <- split_genes[i]
+		}
+	}
+	new_genes <- new_genes[!is.na(new_genes)]
 	if (length(new_genes) > 0 && identical(scrape, TRUE) && identical(force, FALSE)) {
 		scraped_genes <- scraper(new_genes, input, organism, query)
-		m <- match(genes, values[[input]])
-		values <- values[m,]
-		values <- rbind(values, scraped_genes)
+		values <- dbReadTable(con, organism)
 	}
 	if (identical(force, TRUE)) {
-		values <- scraper(genes, input, organism, query)
+		scraped_genes <- scraper(genes, input, organism, query)
+		values <- dbReadTable(con, organism)
 	}
+
+	value_list <- list()
+	split_list <- list()
+	for (i in seq_along(genes)) {
+		if (grepl(",", genes[i])) {
+			gene_split <- unlist(strsplit(genes[i], ","))
+			split_list[[i]] <- gene_split
+		} else {
+			value_list[[i]] <- values[grepl(genes[i], values[[input]]),]
+		}
+	}
+	gene_split <- unique(unlist(split_list))
+	for (i in seq_along(gene_split)) {
+			 value_list[[i+length(value_list)]] <- values[grepl(gene_split[i], values[[input]]),]
+	}
+	values <- do.call(rbind, unique(value_list))
 	dbDisconnect(con)
 
 	if (no_version) {
-		geneloc <- gsub("\\..*", "", values[["geneloc"]])
-		protein <- gsub("\\..*", "", values[["protein"]])
-		transcript <- gsub("\\..*", "", values[["transcript"]])
+		geneloc <- gsub("\\.\\d+", "", values[["geneloc"]])
+		protein <- gsub("\\.\\d+", "", values[["protein"]])
+		transcript <- gsub("\\.\\d+", "", values[["transcript"]])
 		values[["geneloc"]] <- geneloc
 		values[["protein"]] <- protein
 		values[["transcript"]] <- transcript
 	}
 
+	values <- values[sort(rownames(values)),]
 	if (full) {
 		return (values)
 	} else {
@@ -200,13 +236,16 @@ scraper <- function(genes, input, organism, query=3000) {
 				multi_run()
 			}
 		} else {
-			print(paste(length(searchURLs), "queries sent."))
-			multi_run()
+			if (identical(i, length(searchURLs))) {
+				print(paste(length(searchURLs), "queries sent."))
+				multi_run()
+			}
 		}
 	}
 	for (i in seq_along(data)) {
 		xdata <- rawToChar(data[[i]]$content)
 		doc <- htmlParse(xdata, encoding="UTF-8")
+		values <- dbReadTable(con, organism)
 		print(paste0("Scraping ", genes[[i]]))
 		exact_match <- grepl("Full Report", xpathApply(doc, "/*", xmlValue))
 		search_results <- grepl("Search results", xpathApply(doc, "/*", xmlValue))
@@ -224,10 +263,13 @@ scraper <- function(genes, input, organism, query=3000) {
 			xdata <- getURL(newURL)
 			doc <- htmlParse(xdata, encoding="UTF-8")
 		}
-		symbol <- unlist(xpathApply(doc, "//span[@class='gn']", xmlValue))
 		geneid <- unlist(xpathApply(doc, "//*[@class='geneid']", xmlValue))
 		geneid <- trimws(gsub(".*\\:", "", geneid))
 		geneid <- gsub(",.*", "", geneid)
+		if (geneid %in% values[["geneid"]]) {
+			next
+		}
+		symbol <- unlist(xpathApply(doc, "//span[@class='gn']", xmlValue))
 		description <- unlist(xpathApply(doc, "//title", xmlValue))
 		description <- trimws(gsub("\\[.*", "", description))
 		geneloc <- unlist(xpathApply(doc, "//p[@class='withnote margin_t2em']/strong", xmlValue))
@@ -244,11 +286,8 @@ scraper <- function(genes, input, organism, query=3000) {
 		options(useFancyQuotes = FALSE)
 		rs <- dbSendStatement(con, paste("INSERT INTO", organism, "VALUES (", values, ");"))
 		dbClearResult(rs)
-		total_list[[i]] <- data.frame(geneid, symbol, description, geneloc, transcript, protein, ensembl, date)
 	}
-	total_frame <- do.call(rbind, total_list)
 	dbDisconnect(con)
-	total_frame
 }
 
 updateTables <- function() {
