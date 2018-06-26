@@ -210,7 +210,6 @@ retrieveURLs <- function(genes, input, organism) {
 }
 
 scraper <- function(genes, input, organism, query=3000) {
-	total_list <- list()
 	path <- file.path(path.expand("~"), ".config/geneConvert/annotations.sqlite")
 	con <- dbConnect(RSQLite::SQLite(), path)
 	searchURLs <- retrieveURLs(genes, input, organism)
@@ -232,8 +231,10 @@ scraper <- function(genes, input, organism, query=3000) {
 				multi_run()
 			}
 			if (i > (floor(length(searchURLs)/query) * query)) {
-				print(paste("Queries", i, "-", length(genes), "sent."))
-				multi_run()
+				if (identical(i, length(searchURLs))) {
+					print(paste("Queries", ((floor(length(searchURLs)/query)*query) + 1), "-", length(genes), "sent."))
+					multi_run()
+				}
 			}
 		} else {
 			if (identical(i, length(searchURLs))) {
@@ -249,7 +250,7 @@ scraper <- function(genes, input, organism, query=3000) {
 		print(paste0("Scraping ", genes[[i]]))
 		exact_match <- grepl("Full Report", xpathApply(doc, "/*", xmlValue))
 		search_results <- grepl("Search results", xpathApply(doc, "/*", xmlValue))
-		if (!exact_match & !search_results) {
+		if (!exact_match && !search_results) {
 			message("Invalid gene or organism name inputted; skipping")
 			next
 		}
@@ -274,18 +275,28 @@ scraper <- function(genes, input, organism, query=3000) {
 		description <- trimws(gsub("\\[.*", "", description))
 		geneloc <- unlist(xpathApply(doc, "//p[@class='withnote margin_t2em']/strong", xmlValue))
 		geneloc <- trimws(gsub(".*-", "", geneloc))
+		if (identical(geneloc, character(0))) {
+			geneloc <- NA
+		}
 		transcript_nm <- unlist(xpathApply(doc, "//p/a[contains(@href, 'NM')]", xmlValue))
 		transcript_nr <- unlist(xpathApply(doc, "//p/a[contains(@href, 'NR')]", xmlValue))
 		transcript <- paste(c(transcript_nm, transcript_nr), collapse=",")
+		if (identical(transcript, "")) {
+			transcript <- NA
+		}
 		protein <- paste(xpathApply(doc, "//p/a[contains(@href, 'protein/NP_')]", xmlValue), collapse=",")
+		if (identical(protein, "")) {
+			protein <- NA
+		}
 		ensembl <- unlist(xpathApply(doc, "//dd/a[@class='genome-browser-link']", xmlValue))
 		ensembl <- gsub(".*\\:", "", ensembl)
+		if (identical(ensembl, character(0))) {
+			ensembl <- NA
+		}
 		date <- unlist(xpathApply(doc, "//*[@class='geneid']", xmlValue))
 		date <- trimws(gsub(".*\n", "", date))
-		values <- paste(geneid, sQuote(symbol), sQuote(description), sQuote(geneloc), sQuote(transcript), sQuote(protein), sQuote(ensembl), sQuote(date), sep=",")
-		options(useFancyQuotes = FALSE)
-		rs <- dbSendStatement(con, paste("INSERT INTO", organism, "VALUES (", values, ");"))
-		dbClearResult(rs)
+		values <- data.frame(geneid, symbol, description, geneloc, transcript,  protein, ensembl, date)
+		dbWriteTable(con, organism, values, overwrite=FALSE, append=TRUE)
 	}
 	dbDisconnect(con)
 }
