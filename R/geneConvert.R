@@ -63,27 +63,32 @@ convert <- function(genes, organism, input, output, scrape=TRUE, force=FALSE, fu
 		genes <- genes[!(grepl("dup", genes))]
 		genes <- genes[!(grepl("chr", genes))]
 	}
-	new_genes <- character()
-	split_genes <- list()
-	for (i in seq_along(genes)) {
-		if (grepl(",", genes[i])) {
-			gene_split <- unlist(strsplit(genes[i], ","))
-			split_genes[[i]] <- gene_split
-		} else if (any(grepl(genes[i], values[[input]]))) {
-			next
-		} else {
-			new_genes[i] <- genes[i]
+	if (identical(input, "transcript") || identical(input, "protein")) {
+		new_genes <- character()
+		split_genes <- list()
+		for (i in seq_along(genes)) {
+			if (grepl(",", genes[i])) {
+				gene_split <- unlist(strsplit(genes[i], ","))
+				split_genes[[i]] <- gene_split
+			} else if (any(grepl(genes[i], values[[input]]))) {
+				next
+			} else {
+				new_genes[i] <- genes[i]
+			}
 		}
-	}
-	split_genes <- unique(unlist(split_genes))
-	for (i in seq_along(split_genes)) {
-		if (any(grepl(split_genes[i], values[[input]]))) {
-			next
-		} else {
-			new_genes[i+length(new_genes)] <- split_genes[i]
+		split_genes <- unique(unlist(split_genes))
+		for (i in seq_along(split_genes)) {
+			if (any(grepl(split_genes[i], values[[input]]))) {
+				next
+			} else {
+				new_genes[i+length(new_genes)] <- split_genes[i]
+			}
 		}
+		new_genes <- new_genes[!is.na(new_genes)]
+	} else {
+		new_genes <- genes[!(genes %in% values[[input]])]
 	}
-	new_genes <- new_genes[!is.na(new_genes)]
+
 	if (length(new_genes) > 0 && identical(scrape, TRUE) && identical(force, FALSE)) {
 		scraped_genes <- scraper(new_genes, input, organism, query)
 		values <- dbReadTable(con, organism)
@@ -93,21 +98,25 @@ convert <- function(genes, organism, input, output, scrape=TRUE, force=FALSE, fu
 		values <- dbReadTable(con, organism)
 	}
 
-	value_list <- list()
-	split_list <- list()
-	for (i in seq_along(genes)) {
-		if (grepl(",", genes[i])) {
-			gene_split <- unlist(strsplit(genes[i], ","))
-			split_list[[i]] <- gene_split
-		} else {
-			value_list[[i]] <- values[grepl(genes[i], values[[input]]),]
+	if (identical(input, "transcript") || identical(input, "protein")) {
+		value_list <- list()
+		split_list <- list()
+		for (i in seq_along(genes)) {
+			if (grepl(",", genes[i])) {
+				gene_split <- unlist(strsplit(genes[i], ","))
+				split_list[[i]] <- gene_split
+			} else {
+				value_list[[i]] <- values[grepl(genes[i], values[[input]]),]
+			}
 		}
+		gene_split <- unique(unlist(split_list))
+		for (i in seq_along(gene_split)) {
+				 value_list[[i+length(value_list)]] <- values[grepl(gene_split[i], values[[input]]),]
+		}
+		values <- do.call(rbind, unique(value_list))
+	} else {
+		values <- values[values[[input]] %in% genes,]
 	}
-	gene_split <- unique(unlist(split_list))
-	for (i in seq_along(gene_split)) {
-			 value_list[[i+length(value_list)]] <- values[grepl(gene_split[i], values[[input]]),]
-	}
-	values <- do.call(rbind, unique(value_list))
 	dbDisconnect(con)
 
 	if (no_version) {
@@ -119,7 +128,6 @@ convert <- function(genes, organism, input, output, scrape=TRUE, force=FALSE, fu
 		values[["transcript"]] <- transcript
 	}
 
-	values <- values[sort(rownames(values)),]
 	if (full) {
 		return (values)
 	} else {
