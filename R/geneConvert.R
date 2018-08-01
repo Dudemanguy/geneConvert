@@ -8,7 +8,7 @@ addNewOrganism <- function(organism) {
 	if (!(organism %in% tables)) {
 		templateFrame <- data.frame(geneid=numeric(), symbol=character(), description=character(),
 									geneloc=character(), transcript=character(), protein=character(),
-									ensembl=character(), date=character())
+									ensembl=character(), goterm=character(), date=character())
 		dbWriteTable(con, organism, templateFrame)
 	} else {
 		stop(paste0("Table named ", organism, " already exists. Quitting."))
@@ -166,6 +166,30 @@ forceUpdate <- function(organism, query=3000) {
 	}
 }
 
+gotermGrab <- function(genes, organism) {
+	print("Note that this function requires biomaRt organism names.")
+	if ((!"biomaRt" %in% installed.packages())) {
+		warning("R package 'biomaRt' not found in the system. Please install the missing packages to use geneConvert functions with goterms.")
+	}
+	ensembl <- biomaRt::useMart("ensembl")
+	ensembl <- biomaRt::useDataset(organism, mart=ensembl)
+	output <- biomaRt::getBM(attributes=c("entrezgene", "go_id"), filters="entrezgene", values=genes, mart=ensembl)
+	path <- file.path(path.expand("~"), ".config/geneConvert/annotations.sqlite")
+	con <- dbConnect(RSQLite::SQLite(), path)
+	sql_organism <- readline("Input regular organism name from database. \n")
+	values <- dbReadTable(con, sql_organism)
+	index <- unique(output[,1])
+	for (i in seq_along(index)) {
+		sub_output <- output[output[,1] == index[i],]
+		go <- sub_output[,2]
+		go <- go[go != ""]
+		go <- paste(go, collapse=",")
+		rs <- dbSendStatement(con, paste("UPDATE", sql_organism, "SET goterm = '", go, "' WHERE geneid = ", index[i], ";"))
+		dbClearResult(rs)
+	}
+	dbDisconnect(con)
+}
+
 matchCase <- function(genes, organism) {
 	if (identical(organism, "homo_sapiens")) {
 		toupper(genes)
@@ -309,6 +333,23 @@ scraper <- function(genes, input, organism, query=3000) {
 	dbDisconnect(con)
 }
 
+updateFields <- function(organism) {
+	organism <- organismSelect(organism)
+	localpath <- file.path(path.expand("~"), ".config/geneConvert/annotations.sqlite")
+	old <- dbConnect(RSQLite::SQLite(), localpath)
+	sourcepath <- system.file("extdata/annotations.sqlite", package="geneConvert")
+	new <- dbConnect(RSQLite::SQLite(), sourcepath)
+	oldFields <- dbListFields(old, organism)
+	newFields <- dbListFields(new, organism)
+	diff <- newFields[!(newFields %in% oldFields)]
+	if (!(identical(diff, character(0)))) {
+		rs <- dbSendStatement(old, paste("ALTER TABLE", organism, "ADD", diff, ";"))
+		dbClearResult(rs)
+	}
+	dbDisconnect(old)
+	dbDisconnect(new)
+}
+
 updateTables <- function() {
 	localpath <- file.path(path.expand("~"), ".config/geneConvert/annotations.sqlite")
 	old <- dbConnect(RSQLite::SQLite(), localpath)
@@ -323,7 +364,7 @@ updateTables <- function() {
 	if (length(updatedTables) > 0) {
 		templateFrame <- data.frame(geneid=character(), symbol=character(), description=character(),
 									geneloc=character(), transcript=character(), protein=character(),
-									ensembl=character(), date=character())
+									ensembl=character(), goterm=character(), date=character())
 		for (i in seq_along(updatedTables)) {
 			dbWriteTable(old, updatedTables[[i]], templateFrame)
 		}
