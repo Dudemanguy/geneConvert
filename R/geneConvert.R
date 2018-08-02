@@ -89,6 +89,10 @@ convert <- function(genes, organism, input, output, scrape=TRUE, force=FALSE, fu
 		new_genes <- genes[!(genes %in% values[[input]])]
 	}
 
+	if (identical(input, "goterm")) {
+		warning("Please be sure you have run gotermGrab to store the needed goterms before using convert.")
+	}
+
 	if (length(new_genes) > 0 && identical(scrape, TRUE) && identical(force, FALSE)) {
 		scraped_genes <- scraper(new_genes, input, organism, query)
 		values <- dbReadTable(con, organism)
@@ -98,7 +102,7 @@ convert <- function(genes, organism, input, output, scrape=TRUE, force=FALSE, fu
 		values <- dbReadTable(con, organism)
 	}
 
-	if (identical(input, "transcript") || identical(input, "protein")) {
+	if (identical(input, "transcript") || identical(input, "protein") || identical(input, "goterm")) {
 		value_list <- list()
 		split_list <- list()
 		for (i in seq_along(genes)) {
