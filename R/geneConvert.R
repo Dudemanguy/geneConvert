@@ -184,7 +184,7 @@ gotermGrab <- function(genes, organism) {
 		go <- sub_output[,2]
 		go <- go[go != ""]
 		go <- paste(go, collapse=",")
-		rs <- dbSendStatement(con, paste("UPDATE", sql_organism, "SET goterm = '", go, "' WHERE geneid = ", index[i], ";"))
+		rs <- dbSendStatement(con, paste0("UPDATE ", sql_organism, " SET goterm = '", go, "' WHERE geneid = ", index[i], ";"))
 		dbClearResult(rs)
 	}
 	dbDisconnect(con)
