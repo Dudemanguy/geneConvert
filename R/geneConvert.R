@@ -293,6 +293,10 @@ scraper <- function(genes, input, organism, query=3000) {
 		if (search_results) {
 			result_values <- xpathApply(doc, "//a[contains(@href, '/gene/')]", xmlValue)
 			index <- match(genes[[i]], result_values)
+			if (is.na(index)) {
+				message("Gene not found. Skipping")
+				next
+			}
 			result_xml <- as(xpathApply(doc, "//a[contains(@href, '/gene/')]")[[index]], "character")
 			result_split <- strsplit(result_xml, "ref")[[1]][2]
 			id <- as.character(gsub("\\D", "", result_split))
