@@ -301,7 +301,8 @@ scraper <- function(genes, input, organism, query=3000) {
 			result_split <- strsplit(result_xml, "ref")[[1]][2]
 			id <- as.character(gsub("\\D", "", result_split))
 			newURL <- paste0("https://www.ncbi.nlm.nih.gov/gene/", id)
-			xdata <- getURL(newURL)
+			raw <- curl_fetch_memory(newURL)
+			xdata <- rawToChar(raw$content)
 			doc <- htmlParse(xdata, encoding="UTF-8")
 		}
 		geneid <- unlist(xpathApply(doc, "//*[@class='geneid']", xmlValue))
