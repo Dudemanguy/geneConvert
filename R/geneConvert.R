@@ -177,7 +177,7 @@ gotermGrab <- function(genes, organism) {
 	}
 	ensembl <- biomaRt::useMart("ensembl")
 	ensembl <- biomaRt::useDataset(organism, mart=ensembl)
-	output <- biomaRt::getBM(attributes=c("entrezgene", "go_id"), filters="entrezgene", values=genes, mart=ensembl)
+	output <- biomaRt::getBM(attributes=c("entrezgene_id", "go_id"), filters="entrezgene_id", values=genes, mart=ensembl)
 	path <- file.path(path.expand("~"), ".config/geneConvert/annotations.sqlite")
 	con <- dbConnect(RSQLite::SQLite(), path)
 	sql_organism <- readline("Input regular organism name from database. \n")
