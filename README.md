@@ -1,7 +1,5 @@
 ## geneConvert
 
-**Note**: This is a WIP.
-
 geneConvert is a simple approach to managing and converting gene annotations. geneConvert integrates SQL and parses NCBI's gene database with XML to fetch gene annotation and store them locally in an SQL database. Unlike other tools, the philosophy of geneConvert is to only fetch annotation once and store them instead of constantly querying databases for the same genes over and over again. When queries are run again, geneConvert checks the SQL table for the existence of the gene before scraping a webpage for annotations.
 
 ## Installation
@@ -16,4 +14,4 @@ output <- convert(genes, "human", "symbol", "geneid")
 ```
 
 ## License
-GPLv2 or later.
+GPLv3
