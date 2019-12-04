@@ -1,5 +1,5 @@
 Package: geneConvert
-Version: 00.00.01
+Version: 00.00.02
 Title: Simple and fast batch gene id conversion.
 Author: <random342@airmail.cc>
 Maintainer: <random342@airmail.cc>
@@ -13,6 +13,6 @@ Description: geneConvert integrates SQL and XML parsing of webpages
 			 can be queried and fetched from the local database for speedy
 			 gene annotation convertion and simply integration into existing
 			 R packages and tools.
-License: GPL (>= 2)
+License: GPL-3
 LazyLoad: yes
 NeedsCompilation: no
